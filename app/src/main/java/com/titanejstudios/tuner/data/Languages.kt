@@ -74,7 +74,23 @@ object Languages {
     }
 
     /** A channel's tag: from its category, else its own name. */
-    fun tagOf(channel: Channel): Tag? = tagOf(channel.group) ?: tagOf(channel.name, useWords = false)
+    fun tagOf(channel: Channel): Tag? = cached(channel.group, true) ?: cached(channel.name, false)
+
+    // Remembered per category / name: worked out for every channel each time the list changes.
+    private val NO_TAG = Tag("", "", false)
+    private val seenWords = java.util.concurrent.ConcurrentHashMap<String, Tag>()
+    private val seenTags = java.util.concurrent.ConcurrentHashMap<String, Tag>()
+
+    private fun cached(text: String, useWords: Boolean): Tag? {
+        val map = if (useWords) seenWords else seenTags
+        val t = map.getOrPut(text) { tagOf(text, useWords) ?: NO_TAG }
+        return if (t === NO_TAG) null else t
+    }
+
+    /** Works out every channel's language ahead (call off the main thread). */
+    fun warm(channels: Collection<Channel>) {
+        for (c in channels) tagOf(c)
+    }
 
     /** A film or series: from its category, else a tag at the start of its title (not words in it – "The African Queen" is English). */
     fun tagOfItem(category: String, name: String): Tag? = tagOf(category) ?: tagOf(name, useWords = false)

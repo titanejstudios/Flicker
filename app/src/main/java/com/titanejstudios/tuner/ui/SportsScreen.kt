@@ -145,7 +145,14 @@ fun SportsScreen(vm: TunerViewModel) {
             return@Column
         }
         if (shown.isEmpty()) {
-            CenterMessage("No sport found in the guide for now.\nIt depends on your provider's guide listing sport properly.")
+            CenterMessage(
+                when {
+                    // The TV guide isn't in memory yet (just opened, or just updated).
+                    vm.epg.isEmpty() -> "Reading the TV guide…"
+                    all.isNullOrEmpty() -> "No sport found in your TV guide for today and tomorrow.\nTry 📅 All fixtures this week – it lists every match and finds its channel."
+                    else -> "Nothing here with these filters."
+                },
+            )
             return@Column
         }
 

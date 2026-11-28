@@ -180,4 +180,29 @@ class RicherTest {
         assertTrue("Brighton & Hove Albion" in teamNames("Brighton", "Brighton and Hove Albion"))
         assertEquals(listOf("Eagles"), teamNames("Eagles"))
     }
+
+    @Test
+    fun eventSlotListingsBecomeTheMatch() {
+        val cal = java.util.Calendar.getInstance().apply { set(2026, 10, 28, 9, 0, 0); set(java.util.Calendar.MILLISECOND, 0) }
+        val now = cal.timeInMillis
+        val allDay = com.titanejstudios.tuner.data.Programme(now - 9 * 3_600_000L, now + 15 * 3_600_000L, "EPL02: Man Utd 15:00 Brentford 28/11", null)
+        val p = com.titanejstudios.tuner.data.Sports.normalise(allDay, now)
+        assertNotNull(p)
+        assertEquals("Man Utd v Brentford", p!!.title)
+        cal.set(java.util.Calendar.HOUR_OF_DAY, 15)
+        assertEquals(cal.timeInMillis, p.start)
+        // An ordinary programme is left alone.
+        val show = com.titanejstudios.tuner.data.Programme(now, now + 3_600_000L, "Football Focus", null)
+        assertEquals("Football Focus", com.titanejstudios.tuner.data.Sports.normalise(show, now)?.title)
+    }
+
+    @Test
+    fun aShowNamedAfterItselfIsNotAReplay() {
+        val p = com.titanejstudios.tuner.data.Programme(0L, 3_600_000L, "Saturday Night Football",
+            "On Saturday Night Football, Ipswich Town play host to Aston Villa at Portman Road in the Premier League.")
+        assertFalse(com.titanejstudios.tuner.data.Sports.looksLikeReplay(p))
+        assertNotNull(com.titanejstudios.tuner.data.Sports.classify(p, "UK | Sports"))
+        val h = com.titanejstudios.tuner.data.Programme(0L, 3_600_000L, "Premier League Highlights", "Ipswich Town v Aston Villa")
+        assertTrue(com.titanejstudios.tuner.data.Sports.looksLikeReplay(h))
+    }
 }
