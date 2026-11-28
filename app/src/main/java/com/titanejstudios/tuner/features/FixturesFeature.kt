@@ -21,7 +21,10 @@ import java.util.Locale
  * NFL, NBA, NHL, MLB), from ESPN – for the Sports page's "All fixtures". Kept for half an hour.
  */
 class FixturesFeature(private val scope: CoroutineScope) {
-    class Entry(val fixture: Espn.Fixture, val sport: Espn.SportChoice)
+    /** A match, its sport, and its competition's place in the list (so leagues show in a sensible order). */
+    class Entry(val fixture: Espn.Fixture, val sport: Espn.SportChoice, val order: Int = 0) {
+        val competition: String get() = fixture.competition ?: sport.label
+    }
 
     var entries by mutableStateOf<List<Entry>?>(null); private set
     var loading by mutableStateOf(false); private set
@@ -58,7 +61,7 @@ class FixturesFeature(private val scope: CoroutineScope) {
                 entries = tidy(found.toList(), now)
             }
             withContext(Dispatchers.IO) {
-                comps.map { (lg, name, sport) ->
+                comps.mapIndexed { index, (lg, name, sport) ->
                     async {
                         gate.withPermit {
                             val list = runCatching { Espn.scoreboard(lg, name, days.first(), days.last()) }
@@ -67,7 +70,7 @@ class FixturesFeature(private val scope: CoroutineScope) {
                                     days.flatMap { d -> runCatching { Espn.scoreboardDay(lg, name, d) }.getOrDefault(emptyList()) }
                                         .ifEmpty { throw it }
                                 }
-                            list.onSuccess { l -> found += l.map { Entry(it, sport) } }
+                            list.onSuccess { l -> found += l.map { Entry(it, sport, index) } }
                                 .onFailure { e ->
                                     failures.incrementAndGet()
                                     if (firstError == null) firstError = "$name: ${e.message ?: e.javaClass.simpleName}"
