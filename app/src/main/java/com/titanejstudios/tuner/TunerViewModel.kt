@@ -6651,6 +6651,8 @@ class TunerViewModel(internal val app: Application) : AndroidViewModel(app), Rem
 
     /** The match whose channels are being chosen from. */
     var fixtureChoice by mutableStateOf<TeamFixture?>(null)
+    /** "Ipswich v Aston Villa" while its channels are being looked for (a card says so). */
+    var findingFixture by mutableStateOf<String?>(null)
 
     fun watchFixtureOn(ch: Channel) {
         fixtureChoice = null

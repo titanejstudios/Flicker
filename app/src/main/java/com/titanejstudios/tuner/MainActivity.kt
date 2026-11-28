@@ -68,6 +68,7 @@ import com.titanejstudios.tuner.ui.SelfTestScreen
 import com.titanejstudios.tuner.ui.FilmInfoDialog
 import com.titanejstudios.tuner.ui.WhatsNewDialog
 import com.titanejstudios.tuner.ui.FixtureChannelsDialog
+import com.titanejstudios.tuner.ui.WorkingCard
 import com.titanejstudios.tuner.ui.StillWatchingDialog
 import com.titanejstudios.tuner.ui.UpdateDialog
 import com.titanejstudios.tuner.ui.SportsScreen
@@ -353,6 +354,7 @@ private fun TunerApp(vm: TunerViewModel) {
             vm.channelSchedule?.let { (c, list) -> com.titanejstudios.tuner.ui.ChannelScheduleDialog(vm, c, list) }
             if (vm.filmInfoOpen) FilmInfoDialog(vm)
             vm.fixtureChoice?.let { FixtureChannelsDialog(vm, it) }
+            vm.findingFixture?.let { WorkingCard("Finding $it on your channels…") { vm.findingFixture = null } }
             // (After film info, so "Where can I watch it?" opens on top of it.)
             vm.whereTo?.let { com.titanejstudios.tuner.ui.WhereToWatchDialog(vm, it) }
             if (vm.stillWatchingAsk) StillWatchingDialog(vm)

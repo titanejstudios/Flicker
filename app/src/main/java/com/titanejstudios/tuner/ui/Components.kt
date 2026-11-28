@@ -1172,3 +1172,19 @@ fun TimeRequestDialog(vm: TunerViewModel, r: TunerViewModel.TimeRequest) {
         onDismiss = { vm.answerTimeRequest(0) },
     )
 }
+
+/** A small card with a spinner: "Finding Ipswich v Aston Villa on your channels…". */
+@Composable
+fun WorkingCard(text: String, onDismiss: () -> Unit) {
+    ModalLayer(onDismiss = onDismiss) {
+        Row(
+            Modifier.align(Alignment.Center).clip(RoundedCornerShape(16.dp)).background(TunerColors.Panel).padding(horizontal = 32.dp, vertical = 24.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            androidx.compose.material3.CircularProgressIndicator(Modifier.size(28.dp), color = TunerColors.Accent, strokeWidth = 3.dp)
+            Spacer(Modifier.width(18.dp))
+            Text(text, color = Color.White, fontSize = 20.sp)
+        }
+    }
+}
+

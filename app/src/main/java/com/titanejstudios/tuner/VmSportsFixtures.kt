@@ -47,21 +47,15 @@ internal fun TunerViewModel.channelsShowing(m: Espn.Fixture): List<Pair<Channel,
     val favs = favouriteSet
     val homes = teamNames(m.home, m.homeFull)
     val aways = teamNames(m.away, m.awayFull)
-    // Listings from a day before (all-day event channels) up to a couple of hours after kick-off.
-    val from = m.kickoff - 30 * 3_600_000L
+    // One read of the guide: listings starting from a day before kick-off (all-day event channels)
+    // to just after it, with the home team in the title – or in the description, for shows named
+    // after themselves ("Saturday Night Football" – "Ipswich Town play host to Aston Villa…").
+    // Both teams have to be named, so looking for the home team is enough.
     val hits = HashMap<String, MutableList<Programme>>()
     val seen = HashSet<String>()
-    for (term in (homes + aways)) {
-        for ((cid, p) in db.searchProgrammes(ids, term, from, 400)) {
-            if (cid !in byId || p.start > m.kickoff + 2 * 3_600_000L) continue
-            if (seen.add(cid + "@" + p.start)) hits.getOrPut(cid) { ArrayList() } += p
-        }
-    }
-    // Programmes named after the show, not the teams ("Saturday Night Football" – "Ipswich Town play
-    // host to Aston Villa…"): the description names them. Only those starting around kick-off.
     runCatching {
-        db.findInWindow(ids, m.kickoff - 4 * 3_600_000L, m.kickoff + 31 * 60_000L, titleWords = emptyList(), descWords = homes, limit = 300)
-    }.getOrDefault(emptyList()).forEach { (cid, p) ->
+        db.findInWindow(ids, m.kickoff - 30 * 3_600_000L, m.kickoff + 31 * 60_000L, titleWords = homes, descWords = homes, limit = 4000)
+    }.onFailure { AppLog.warn("All fixtures: couldn't search the guide", it) }.getOrDefault(emptyList()).forEach { (cid, p) ->
         if (cid in byId && seen.add(cid + "@" + p.start)) hits.getOrPut(cid) { ArrayList() } += p
     }
     val guide = shiftGuide(chans, hits)
@@ -90,16 +84,31 @@ internal fun TunerViewModel.channelsShowing(m: Espn.Fixture): List<Pair<Channel,
             found += Triple(c, p, score)
         }
     }
-    return found.sortedByDescending { it.third }.distinctBy { it.first.id }.map { it.first to it.second }
+    // Favourites first, then UK channels, then the best picture (4K, then 1080p, 720p…), then the best match.
+    fun region(c: Channel): Int = when (com.titanejstudios.tuner.data.Languages.tagOf(c)?.code) {
+        "UK" -> 0
+        null, "EN" -> 1
+        else -> if (com.titanejstudios.tuner.data.Languages.tagOf(c)?.english == true) 2 else 3
+    }
+    return found.sortedByDescending { it.third }.distinctBy { it.first.id }
+        .sortedWith(
+            compareBy<Triple<Channel, Programme, Int>>({ if (it.first.id in favs) 0 else 1 }, { region(it.first) })
+                .thenByDescending { com.titanejstudios.tuner.data.ChannelMerge.quality(it.first.name) }
+                .thenByDescending { it.third },
+        )
+        .map { it.first to it.second }
 }
 
 /** Clicked a fixture: find its channels, then choose one (to watch now, or a reminder for later). */
 fun TunerViewModel.chooseFixtureChannel(m: Espn.Fixture) {
+    if (findingFixture != null) return
+    findingFixture = "${m.home} v ${m.away}"
     viewModelScope.launch {
         val all = withContext(Dispatchers.IO) {
             runCatching { channelsShowing(m) }.onFailure { AppLog.warn("All fixtures: couldn't search the guide", it) }.getOrDefault(emptyList())
         }
         val guideEnd = withContext(Dispatchers.IO) { runCatching { db.guideEnd(activeSources().map { it.id }) }.getOrDefault(0L) }
+        findingFixture = null
         if (all.isEmpty()) {
             showNotice(
                 if (guideEnd > 0 && m.kickoff > guideEnd) "${m.home} v ${m.away} isn't in your TV guide yet – the guide doesn't reach that day"
