@@ -263,6 +263,7 @@ private fun AllFixtures(vm: TunerViewModel, onBack: () -> Unit) {
     LaunchedEffect(Unit) { feature.load() }
     val now = vm.now
     var sport by rememberSaveable { mutableStateOf("all") }
+    var league by rememberSaveable { mutableStateOf("all") }
     val first = remember { FocusRequester() }
     LaunchedEffect(Unit) {
         delay(60)
@@ -271,7 +272,12 @@ private fun AllFixtures(vm: TunerViewModel, onBack: () -> Unit) {
     val narrow = narrowScreen()
     val entries = feature.entries
     val sports = entries.orEmpty().groupingBy { it.sport.key }.eachCount()
-    val shown = entries.orEmpty().filter { sport == "all" || it.sport.key == sport }
+    val ofSport = entries.orEmpty().filter { sport == "all" || it.sport.key == sport }
+    // The leagues and cups in the chosen sport, in the usual order, with how many matches each.
+    val leagues = ofSport.groupBy { it.competition }.entries
+        .sortedWith(compareBy({ e -> e.value.minOf { it.order } }, { it.key }))
+        .map { it.key to it.value.size }
+    val shown = ofSport.filter { league == "all" || it.competition == league }
     androidx.activity.compose.BackHandler(onBack = onBack)
 
     Column(Modifier.fillMaxSize().skyBackground().padding(horizontal = if (narrow) 12.dp else 48.dp, vertical = if (narrow) 10.dp else 28.dp)) {
@@ -283,11 +289,21 @@ private fun AllFixtures(vm: TunerViewModel, onBack: () -> Unit) {
         Spacer(Modifier.height(12.dp))
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             item(key = "back") { PillButton("← Sport in the guide", onBack, Modifier.focusRequester(first), compact = true) }
-            item(key = "all") { PillButton("All (${entries?.size ?: 0})", { sport = "all" }, selected = sport == "all", compact = true) }
+            item(key = "all") { PillButton("All (${entries?.size ?: 0})", { sport = "all"; league = "all" }, selected = sport == "all", compact = true) }
             items(com.titanejstudios.tuner.integrations.Espn.SPORTS.filter { (sports[it.key] ?: 0) > 0 }, key = { it.key }) { s ->
-                PillButton("${s.emoji} ${s.label} (${sports[s.key]})", { sport = s.key }, selected = sport == s.key, compact = true)
+                PillButton("${s.emoji} ${s.label} (${sports[s.key]})", { sport = s.key; league = "all" }, selected = sport == s.key, compact = true)
             }
             item(key = "refresh") { PillButton(if (feature.loading) "⟳ " + (feature.progress ?: "") else "↻ Refresh", { feature.load(force = true) }, compact = true) }
+        }
+        // Second row: the leagues and cups (in the chosen sport, or all of them).
+        if (leagues.size > 1) {
+            Spacer(Modifier.height(8.dp))
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                item(key = "lg-all") { PillButton("All leagues", { league = "all" }, selected = league == "all", compact = true) }
+                items(leagues, key = { "lg-" + it.first }) { (name, n) ->
+                    PillButton("$name ($n)", { league = name }, selected = league == name, compact = true)
+                }
+            }
         }
         Spacer(Modifier.height(14.dp))
         when {
