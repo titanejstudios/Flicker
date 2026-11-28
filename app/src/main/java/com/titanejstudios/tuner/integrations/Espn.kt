@@ -102,6 +102,9 @@ object Espn {
         val timeKnown: Boolean,
         /** Which of your teams this is for. */
         val team: String,
+        /** The full names ("Manchester United" for "Man Utd"), when ESPN gives them. */
+        val homeFull: String = "",
+        val awayFull: String = "",
     ) {
         val live: Boolean get() = state == "in"
         val finished: Boolean get() = state == "post"
@@ -160,10 +163,15 @@ object Espn {
         val sides = comp.optJSONArray("competitors") ?: return null
         var home: String? = null
         var away: String? = null
+        var homeFull = ""
+        var awayFull = ""
         for (j in 0 until sides.length()) {
             val s = sides.optJSONObject(j) ?: continue
-            val n = s.optJSONObject("team")?.let { it.optString("shortDisplayName").ifBlank { it.optString("displayName") } } ?: continue
-            if (s.optString("homeAway") == "home") home = n else away = n
+            val t = s.optJSONObject("team") ?: continue
+            val n = t.optString("shortDisplayName").ifBlank { t.optString("displayName") }
+            if (n.isBlank()) continue
+            val full = t.optString("displayName")
+            if (s.optString("homeAway") == "home") { home = n; homeFull = full } else { away = n; awayFull = full }
         }
         if (home == null || away == null) return null
         val kickoff = parseTime(e.optString("date").ifBlank { comp.optString("date") }) ?: return null
@@ -175,6 +183,7 @@ object Espn {
         return Fixture(
             e.optString("id").ifBlank { "$home-$away-$kickoff" }, home, away, kickoff, competition,
             state.ifBlank { "pre" }, comp.optBoolean("timeValid", e.optBoolean("timeValid", true)), followedName,
+            homeFull, awayFull,
         )
     }
 
@@ -203,7 +212,7 @@ object Espn {
         for (i in 0 until events.length()) {
             val f = parseEvent(events.optJSONObject(i) ?: continue, name, "") ?: continue
             // Each competition's own name (the event's "league" can be the season type).
-            out += Fixture(f.id, f.home, f.away, f.kickoff, name, f.state, f.timeKnown, "")
+            out += Fixture(f.id, f.home, f.away, f.kickoff, name, f.state, f.timeKnown, "", f.homeFull, f.awayFull)
         }
         return out.sortedBy { it.kickoff }
     }
