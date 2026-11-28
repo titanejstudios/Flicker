@@ -34,35 +34,67 @@ class FixturesFeature(private val scope: CoroutineScope) {
             Espn.CUPS.map { (lg, name) -> Triple(lg, name, football) }
     }
 
+    /** Why nothing came, in plain words (shown on the page), or null. */
+    var problem by mutableStateOf<String?>(null); private set
+    /** "12 of 35 competitions" while loading. */
+    var progress by mutableStateOf<String?>(null); private set
+
     fun load(force: Boolean = false) {
         if (loading) return
         if (!force && entries != null && System.currentTimeMillis() - loadedAt < 30 * 60_000L) return
         loading = true
+        problem = null
         scope.launch {
-            val day = SimpleDateFormat("yyyyMMdd", Locale.UK)
+            val dayFmt = SimpleDateFormat("yyyyMMdd", Locale.UK)
             val now = System.currentTimeMillis()
-            val from = day.format(now - 86_400_000L)
-            val to = day.format(now + 7 * 86_400_000L)
+            val days = (-1..7).map { dayFmt.format(now + it * 86_400_000L) }
+            val comps = competitions()
             val gate = Semaphore(6)
-            var failed = 0
-            val all = withContext(Dispatchers.IO) {
-                competitions().map { (lg, name, sport) ->
+            val failures = java.util.concurrent.atomic.AtomicInteger(0)
+            val done = java.util.concurrent.atomic.AtomicInteger(0)
+            var firstError: String? = null
+            val found = java.util.Collections.synchronizedList(ArrayList<Entry>())
+            fun publish() {
+                entries = tidy(found.toList(), now)
+            }
+            withContext(Dispatchers.IO) {
+                comps.map { (lg, name, sport) ->
                     async {
                         gate.withPermit {
-                            runCatching { Espn.scoreboard(lg, name, from, to).map { Entry(it, sport) } }
-                                .onFailure { failed++ }
-                                .getOrDefault(emptyList())
+                            val list = runCatching { Espn.scoreboard(lg, name, days.first(), days.last()) }
+                                .recoverCatching {
+                                    // Some competitions don't take a range of dates: one day at a time.
+                                    days.flatMap { d -> runCatching { Espn.scoreboardDay(lg, name, d) }.getOrDefault(emptyList()) }
+                                        .ifEmpty { throw it }
+                                }
+                            list.onSuccess { l -> found += l.map { Entry(it, sport) } }
+                                .onFailure { e ->
+                                    failures.incrementAndGet()
+                                    if (firstError == null) firstError = "$name: ${e.message ?: e.javaClass.simpleName}"
+                                }
+                            progress = "${done.incrementAndGet()} of ${comps.size} competitions"
+                            // Show what's here so far.
+                            withContext(Dispatchers.Main) { publish() }
                         }
                     }
-                }.awaitAll().flatten()
+                }.awaitAll()
             }
-            // From three hours ago (still on, or just finished) to a week ahead; the same match once.
-            entries = all.filter { it.fixture.kickoff > now - 3 * 3_600_000L && !it.fixture.finished }
-                .distinctBy { it.fixture.home + "|" + it.fixture.away + "|" + it.fixture.kickoff / 3_600_000L }
-                .sortedBy { it.fixture.kickoff }
+            publish()
+            progress = null
             loadedAt = System.currentTimeMillis()
             loading = false
-            if (failed > 0) AppLog.info("All fixtures: $failed competition(s) couldn't be read from ESPN")
+            val failed = failures.get()
+            if (failed > 0) AppLog.warn("All fixtures: $failed of ${comps.size} competition(s) couldn't be read from ESPN – first: $firstError")
+            if (entries.isNullOrEmpty()) {
+                problem = if (failed == comps.size) "Couldn't reach ESPN for the fixtures ($firstError). Check the internet connection – if a VPN is on, try with it off."
+                else "ESPN didn't list any matches for this week."
+            }
         }
     }
+
+    /** From three hours ago (still on, or just finished) to a week ahead, the same match once, soonest first. */
+    private fun tidy(all: List<Entry>, now: Long): List<Entry> =
+        all.filter { it.fixture.kickoff > now - 3 * 3_600_000L && !it.fixture.finished }
+            .distinctBy { it.fixture.home + "|" + it.fixture.away + "|" + it.fixture.kickoff / 3_600_000L }
+            .sortedBy { it.fixture.kickoff }
 }

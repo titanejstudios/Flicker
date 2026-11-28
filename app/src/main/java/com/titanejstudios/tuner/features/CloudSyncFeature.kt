@@ -66,6 +66,28 @@ class CloudSyncFeature(
     var devices by mutableStateOf<List<Device>>(emptyList()); private set
     var lastSync by mutableStateOf(store.cloudSyncedAt); private set
     var syncing by mutableStateOf(false); private set
+
+    /**
+     * A device with no playlists found some in your Google account: offered ("Playlist found –
+     * import it?") rather than taken without asking. The playlists, and when they were last changed.
+     */
+    var foundPlaylists by mutableStateOf<Pair<List<com.titanejstudios.tuner.data.Source>, Long>?>(null); private set
+
+    /** "Import": the found playlists become this device's, and their channels load. */
+    fun importFound() {
+        val (list, at) = foundPlaylists ?: return
+        foundPlaylists = null
+        store.setSourcesFromSync(list, at)
+        AppLog.info("Playlists imported from your Google account: " + list.joinToString { it.name })
+        onSynced(setOf(Store.PLAYLISTS))
+    }
+
+    /** "Not now": not asked again until they change on another device. */
+    fun declineFound() {
+        val (_, at) = foundPlaylists ?: return
+        foundPlaylists = null
+        store.setSyncStamp(Store.PLAYLISTS, at)
+    }
     var house by mutableStateOf(store.cloudHouse); private set
     var shareFavourites by mutableStateOf(store.cloudShareFavourites); private set
 
@@ -286,13 +308,19 @@ class CloudSyncFeature(
                 changed += "pin"
             }
         }
-        // Playlists: a device with none takes them (a new TV signs in and its channels appear);
-        // otherwise a newer change from another device is added in (playlists are never removed this way).
+        // Playlists: a device with none is offered them ("Playlist found – import it?"); otherwise a
+        // newer change from another device is added in (playlists are never removed this way).
         bestSources?.let { arr ->
             val theirs = store.sourcesFromCloud(arr, store.gdriveEmail)
             val mine = store.sources
             val mineAt = store.syncStamp(Store.PLAYLISTS)
-            if (theirs.isNotEmpty() && (mine.isEmpty() || bestSourcesAt > mineAt)) {
+            if (theirs.isNotEmpty() && mine.isEmpty()) {
+                // Asked once per change: "Not now" isn't asked again until they change somewhere else.
+                if (bestSourcesAt > mineAt && foundPlaylists == null) {
+                    foundPlaylists = theirs to bestSourcesAt
+                    AppLog.info("Found ${theirs.size} playlist(s) in your Google account – asking whether to import")
+                }
+            } else if (theirs.isNotEmpty() && bestSourcesAt > mineAt) {
                 val merged = mine.map { m -> theirs.firstOrNull { it.id == m.id } ?: m } + theirs.filter { t -> mine.none { it.id == t.id } }
                 if (merged != mine) {
                     store.setSourcesFromSync(merged, maxOf(bestSourcesAt, mineAt))

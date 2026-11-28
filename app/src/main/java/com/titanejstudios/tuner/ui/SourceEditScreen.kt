@@ -82,16 +82,22 @@ fun SourceEditScreen(vm: TunerViewModel) {
             color = TunerColors.TextPrimary,
         )
         Text(
-            if (firstRun) "Add your IPTV provider to get started. You can add more playlists later in Settings."
+            if (firstRun) "Already use Flicker on another TV or phone? Sign in with Google and your playlist comes across. " +
+                "Otherwise, add your IPTV provider below."
             else "Changes are saved when you press Save.",
             fontSize = 18.sp,
             color = TunerColors.TextSecondary,
         )
 
+        if (firstRun && vm.cloud.available) {
+            // First: bring the playlist from your Google account (a QR code to scan on TVs).
+            PillButton("🔑 Sign in with Google – bring your playlist across", { vm.navigate(Screen.Cloud) }, Modifier.focusRequester(firstFocus))
+            Text("Or add one here:", fontSize = 16.sp, color = TunerColors.TextSecondary)
+        }
         if (existing == null) {
-            PillButton("📱 Set up from your phone instead (recommended)", { vm.navigate(Screen.PhoneSetup) })
+            PillButton("📱 Set up from your phone instead", { vm.navigate(Screen.PhoneSetup) })
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                PillButton("M3U playlist", { mode = 0 }, Modifier.focusRequester(firstFocus), selected = mode == 0)
+                PillButton("M3U playlist", { mode = 0 }, if (firstRun && vm.cloud.available) Modifier else Modifier.focusRequester(firstFocus), selected = mode == 0)
                 PillButton("Xtream Codes login", { mode = 1 }, selected = mode == 1)
             }
         }
