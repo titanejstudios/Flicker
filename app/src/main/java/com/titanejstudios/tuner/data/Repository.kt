@@ -75,7 +75,7 @@ class Repository(private val context: Context, private val store: Store) {
         val now = System.currentTimeMillis()
         val from = now - 3 * 3600_000L
         val to = now + guideDays * 86_400_000L
-        val channels = list.map { com.titanejstudios.backupguide.BackupGuideCore.Channel(it.id, it.epgId, it.name) }
+        val channels = list.map { com.titanejstudios.backupguide.BackupGuideCore.Channel(it.id, it.epgId, it.name, it.group) }
         // Saved a couple of thousand at a time (short writes, little held in memory).
         val batch = ArrayList<Pair<String, Programme>>(2000)
         fun flush() {

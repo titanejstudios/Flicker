@@ -14,7 +14,11 @@ object Sports {
                 "big bash|bbl|wbbl|county championship|sheffield shield|ranji trophy|sa20|ilt20|psl|cpl|" +
                 "vitality blast|one-day cup|rising stars)\\b"
         ),
-        "Rugby" to Regex("\\b(rugby|six nations|premiership rugby|super league|challenge cup|urc)\\b"),
+        "Rugby" to Regex(
+            "\\b(rugby|six nations|nations championship|autumn nations|autumn internationals|quilter|premiership rugby|prem rugby|" +
+                "gallagher|super league|challenge cup|champions cup|urc|top 14|super rugby|nrl|all blacks|springboks|wallabies|" +
+                "british (and|&) irish lions|lions tour|sevens)\\b"
+        ),
         "Football" to Regex(
             "\\b(football|soccer|premier league|champions league|europa league|conference league|fa cup|" +
                 "efl|carabao cup|la liga|serie a|bundesliga|ligue 1|spfl|scottish premiership|mls|world cup|" +
