@@ -64,6 +64,36 @@ object XtreamClient {
         parts.joinToString(" · ").ifEmpty { "Logged in" }
     }
 
+    /**
+     * An Xtream-style M3U link (…/get.php?username=…&password=…) → that panel's player_api address,
+     * or null for any other kind of playlist.
+     */
+    fun apiFromM3u(playlistUrl: String): String? = runCatching {
+        val uri = java.net.URI(playlistUrl.trim())
+        if (!uri.path.orEmpty().endsWith("/get.php", ignoreCase = true)) return@runCatching null
+        val q = uri.rawQuery ?: return@runCatching null
+        val params = q.split('&').mapNotNull { kv -> kv.split('=', limit = 2).takeIf { it.size == 2 }?.let { it[0] to it[1] } }.toMap()
+        val u = params["username"]?.takeIf { it.isNotBlank() } ?: return@runCatching null
+        val pw = params["password"]?.takeIf { it.isNotBlank() } ?: return@runCatching null
+        val port = if (uri.port > 0) ":${uri.port}" else ""
+        "${uri.scheme}://${uri.host}$port/player_api.php?username=$u&password=$pw"
+    }.getOrNull()
+
+    /** The server a playlist streams from (to tell whether all your playlists share one account). */
+    fun hostOf(src: Source): String? = runCatching {
+        when (src) {
+            is Source.Xtream -> java.net.URI(normaliseServer(src.server)).host
+            is Source.M3u -> java.net.URI(src.playlistUrl.trim()).host
+        }
+    }.getOrNull()?.lowercase()
+
+    /** [maxConnections] for an Xtream-style M3U link (null if it isn't one, or the panel doesn't say). */
+    fun maxConnectionsM3u(src: Source.M3u): Int? = try {
+        apiFromM3u(src.playlistUrl)?.let { JSONObject(Http.readText(it)).optJSONObject("user_info")?.str("max_connections")?.toIntOrNull() }
+    } catch (e: Exception) {
+        null
+    }
+
     /** How many streams the account allows at once (null if the panel doesn't say). */
     fun maxConnections(src: Source.Xtream): Int? = try {
         JSONObject(Http.readText(apiBase(src))).optJSONObject("user_info")?.str("max_connections")?.toIntOrNull()

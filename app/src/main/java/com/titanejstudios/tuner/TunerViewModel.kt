@@ -1243,7 +1243,7 @@ class TunerViewModel(internal val app: Application) : AndroidViewModel(app), Rem
 
     /** How many streams the provider allows at once (for the recordings planner); null = unknown. */
     var accountStreams by mutableStateOf<Int?>(null); private set
-    private var accountStreamsLoaded = false
+    private var accountStreamsFor: String? = null
 
     // ---------------- 5.4 ----------------
 
@@ -5239,14 +5239,40 @@ class TunerViewModel(internal val app: Application) : AndroidViewModel(app), Rem
 
     // ---------------- Recordings planner ----------------
 
-    /** Asks the provider (once) how many streams the account allows, for the planner's clash note. */
+    /**
+     * Asks the provider (once per set of playlists) how many streams the account allows: for the
+     * planner's clash note, and so channel checks can carry on while you watch when there's a spare.
+     * Works for Xtream logins and Xtream-style M3U links. Only when every playlist is on one server
+     * (otherwise the number would be for just one of your accounts).
+     */
     fun loadAccountStreams() {
-        if (accountStreamsLoaded) return
-        accountStreamsLoaded = true
-        val src = sources.filterIsInstance<Source.Xtream>().firstOrNull() ?: return
+        val key = sources.joinToString { it.id }
+        if (accountStreamsFor == key) return
+        accountStreamsFor = key
+        val all = sources
         viewModelScope.launch {
-            accountStreams = withContext(Dispatchers.IO) { XtreamClient.maxConnections(src) }
+            accountStreams = withContext(Dispatchers.IO) {
+                val hosts = all.map { XtreamClient.hostOf(it) }.toSet()
+                if (all.isEmpty() || hosts.size != 1 || hosts.first() == null) return@withContext null
+                all.firstNotNullOfOrNull { src ->
+                    when (src) {
+                        is Source.Xtream -> XtreamClient.maxConnections(src)
+                        is Source.M3u -> XtreamClient.maxConnectionsM3u(src)
+                    }
+                }
+            }
+            AppLog.info("Your account allows ${accountStreams ?: "an unknown number of"} stream(s) at once")
         }
+    }
+
+    /**
+     * A connection to spare for checking channels: the account allows more streams than are in use
+     * (watching counts as one, plus any recordings running). Unknown → no, as before.
+     */
+    internal fun spareStream(): Boolean {
+        val max = accountStreams ?: return false
+        val inUse = (if (mode != null) 1 else 0) + recordings.count { it.status == RecStatus.RECORDING }
+        return max > inUse
     }
 
     // ---------------- Home Assistant: paused / resumed and cinema lights ----------------

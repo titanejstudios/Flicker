@@ -257,10 +257,14 @@ internal fun TunerViewModel.toggleHealthScope() {
     store.healthScope = healthScope
 }
 
-/** Checks channels now. Stops playback first, since many providers allow only one connection. */
+/**
+ * Checks channels now. Many providers allow only one connection, so this stops playback first,
+ * unless your account allows more streams than you're using (then it checks while you watch).
+ */
 internal fun TunerViewModel.runHealthCheck() {
     if (healthJob?.isActive == true) return
-    stopPlayback()
+    loadAccountStreams()
+    if (!spareStream()) stopPlayback()
     val targets = if (healthScope == "all") allChannels.filter { it.group !in hiddenGroups && it.id !in hiddenChannels }
     else allChannels.filter { it.id in favouriteSet }
     if (targets.isEmpty()) {
@@ -332,14 +336,16 @@ internal fun TunerViewModel.matchDayCheck() {
         if (newlyOn.isNotEmpty()) AppLog.info("Match day: ${newlyOn.size} offline channel(s) have something on soon – showing them")
     }
     val every = if (liteOn) 6 * 3_600_000L else 3 * 3_600_000L
-    if (t - offlineRecheckedAt < every || mode != null || healthJob?.isActive == true) return
+    loadAccountStreams()
+    // While something's playing, only if the account has a stream to spare.
+    if (t - offlineRecheckedAt < every || (mode != null && !spareStream()) || healthJob?.isActive == true) return
     offlineRecheckedAt = t
     // The ones on soon first, then the rest (up to 60, so it's over in a minute or two).
     val targets = dead.mapNotNull { byId[it] }.sortedByDescending { it.id in soon }.take(60)
     if (targets.isEmpty()) return
     healthJob = viewModelScope.launch {
         var done = 0
-        val stillDead = withContext(Dispatchers.IO) { HealthCheck.run(targets, { mode != null || healthCancel }) { d, _, _ -> done = d } }
+        val stillDead = withContext(Dispatchers.IO) { HealthCheck.run(targets, { (mode != null && !spareStream()) || healthCancel }) { d, _, _ -> done = d } }
         // Only the channels it actually got to count (it stops part-way if something starts playing).
         val back = targets.take(done).map { it.id }.toSet() - stillDead
         if (back.isNotEmpty()) {

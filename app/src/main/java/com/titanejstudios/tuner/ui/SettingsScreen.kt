@@ -682,13 +682,15 @@ fun SettingsScreen(vm: TunerViewModel) {
 
             section("Channel health")
             item {
+                LaunchedEffect(Unit) { vm.loadAccountStreams() }
                 val progress = vm.healthProgress
                 SettingRow(
                     if (progress != null) "Checking channels… (OK to stop)" else "Check channels now",
                     subtitle = progress ?: (
                         "${vm.deadChannels.size} offline" +
                             (if (vm.healthCheckedAt > 0) " · last checked ${dayLabel(vm.healthCheckedAt)} ${hhmm(vm.healthCheckedAt)}" else " · never checked") +
-                            " · stops playback while checking"
+                            (vm.accountStreams?.takeIf { it > 1 }?.let { " · your account allows $it streams, so it checks while you watch" } ?: " · stops playback while checking") +
+                            " · shared with the other devices in this house"
                         ),
                     onClick = { if (progress != null) vm.cancelHealthCheck() else vm.runHealthCheck() },
                 )

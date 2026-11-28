@@ -78,4 +78,14 @@ class ParsingTest {
         assertEquals(2 to 4, OpenSubtitles.seasonEpisode("S2 E4  The Girl in the Fireplace"))
         assertNull(OpenSubtitles.seasonEpisode("A film"))
     }
+
+    @Test
+    fun xtreamStyleM3uLinkGivesTheAccountAddress() {
+        assertEquals(
+            "http://example.com:8080/player_api.php?username=me&password=pw",
+            com.titanejstudios.tuner.data.XtreamClient.apiFromM3u("http://example.com:8080/get.php?username=me&password=pw&type=m3u_plus&output=ts"),
+        )
+        assertNull(com.titanejstudios.tuner.data.XtreamClient.apiFromM3u("https://example.com/my-list.m3u"))
+        assertNull(com.titanejstudios.tuner.data.XtreamClient.apiFromM3u("http://example.com/get.php?type=m3u"))
+    }
 }
