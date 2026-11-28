@@ -287,12 +287,12 @@ private fun AllFixtures(vm: TunerViewModel, onBack: () -> Unit) {
             items(com.titanejstudios.tuner.integrations.Espn.SPORTS.filter { (sports[it.key] ?: 0) > 0 }, key = { it.key }) { s ->
                 PillButton("${s.emoji} ${s.label} (${sports[s.key]})", { sport = s.key }, selected = sport == s.key, compact = true)
             }
-            item(key = "refresh") { PillButton("↻", { feature.load(force = true) }, compact = true) }
+            item(key = "refresh") { PillButton(if (feature.loading) "⟳ " + (feature.progress ?: "") else "↻ Refresh", { feature.load(force = true) }, compact = true) }
         }
         Spacer(Modifier.height(14.dp))
         when {
-            entries == null || (feature.loading && entries.isEmpty()) -> { CenterMessage("Getting this week's fixtures…"); return@Column }
-            shown.isEmpty() -> { CenterMessage("No fixtures found this week."); return@Column }
+            entries.isNullOrEmpty() && feature.loading -> { CenterMessage("Getting this week's fixtures… " + (feature.progress ?: "")); return@Column }
+            shown.isEmpty() -> { CenterMessage(feature.problem ?: "No fixtures found this week."); return@Column }
         }
         val todayEnd = endOfDay(now, 0)
         val tomorrowEnd = endOfDay(now, 1)

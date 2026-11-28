@@ -189,8 +189,14 @@ object Espn {
     )
 
     /** Every match in one competition between two days ("20261128", "20261205"), soonest first. Blocking. */
-    fun scoreboard(league: String, leagueName: String, fromDay: String, toDay: String): List<Fixture> {
-        val o = get("$BASE/${path(league)}/scoreboard?dates=$fromDay-$toDay&limit=300")
+    fun scoreboard(league: String, leagueName: String, fromDay: String, toDay: String): List<Fixture> =
+        scoreboardAt(league, leagueName, "$fromDay-$toDay&limit=300")
+
+    /** One day's matches in a competition ("20261128"), for when a range isn't accepted. Blocking. */
+    fun scoreboardDay(league: String, leagueName: String, day: String): List<Fixture> = scoreboardAt(league, leagueName, day)
+
+    private fun scoreboardAt(league: String, leagueName: String, dates: String): List<Fixture> {
+        val o = get("$BASE/${path(league)}/scoreboard?dates=$dates")
         val name = o.optJSONArray("leagues")?.optJSONObject(0)?.optString("name")?.ifBlank { null } ?: leagueName
         val events = o.optJSONArray("events") ?: return emptyList()
         val out = ArrayList<Fixture>()
