@@ -79,6 +79,14 @@ object Sports {
     )
 
     /** Shown live rather than highlights/previews/replays (and a sensible match length). */
+    /** Highlights, a repeat or a show about the sport (from the title or the description). */
+    fun looksLikeReplay(p: Programme): Boolean {
+        val title = p.title.lowercase()
+        if (notLive.containsMatchIn(title)) return true
+        val t = (title + " " + (p.desc ?: "").take(160)).lowercase()
+        return Regex("\\b(highlights|another chance|action from (yesterday|last|saturday|sunday|monday|tuesday|wednesday|thursday|friday)|repeat of|first shown)\\b").containsMatchIn(t)
+    }
+
     fun looksLive(p: Programme): Boolean {
         val title = p.title.lowercase()
         if (notLive.containsMatchIn(title)) return false

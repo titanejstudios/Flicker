@@ -195,4 +195,14 @@ class RicherTest {
         val show = com.titanejstudios.tuner.data.Programme(now, now + 3_600_000L, "Football Focus", null)
         assertEquals("Football Focus", com.titanejstudios.tuner.data.Sports.normalise(show, now)?.title)
     }
+
+    @Test
+    fun aShowNamedAfterItselfIsNotAReplay() {
+        val p = com.titanejstudios.tuner.data.Programme(0L, 3_600_000L, "Saturday Night Football",
+            "On Saturday Night Football, Ipswich Town play host to Aston Villa at Portman Road in the Premier League.")
+        assertFalse(com.titanejstudios.tuner.data.Sports.looksLikeReplay(p))
+        assertNotNull(com.titanejstudios.tuner.data.Sports.classify(p, "UK | Sports"))
+        val h = com.titanejstudios.tuner.data.Programme(0L, 3_600_000L, "Premier League Highlights", "Ipswich Town v Aston Villa")
+        assertTrue(com.titanejstudios.tuner.data.Sports.looksLikeReplay(h))
+    }
 }

@@ -57,6 +57,13 @@ internal fun TunerViewModel.channelsShowing(m: Espn.Fixture): List<Pair<Channel,
             if (seen.add(cid + "@" + p.start)) hits.getOrPut(cid) { ArrayList() } += p
         }
     }
+    // Programmes named after the show, not the teams ("Saturday Night Football" – "Ipswich Town play
+    // host to Aston Villa…"): the description names them. Only those starting around kick-off.
+    runCatching {
+        db.findInWindow(ids, m.kickoff - 4 * 3_600_000L, m.kickoff + 31 * 60_000L, titleWords = emptyList(), descWords = homes, limit = 300)
+    }.getOrDefault(emptyList()).forEach { (cid, p) ->
+        if (cid in byId && seen.add(cid + "@" + p.start)) hits.getOrPut(cid) { ArrayList() } += p
+    }
     val guide = shiftGuide(chans, hits)
     val kickTime = java.text.SimpleDateFormat("HH:mm", java.util.Locale.UK).format(java.util.Date(m.kickoff))
     val now = System.currentTimeMillis()
@@ -65,12 +72,17 @@ internal fun TunerViewModel.channelsShowing(m: Espn.Fixture): List<Pair<Channel,
         val c = byId[cid] ?: continue
         for (raw in list) {
             val both = homes.any { SportFollow.mentions(raw.title, it) } && aways.any { SportFollow.mentions(raw.title, it) }
-            if (!both) continue
+            val desc = raw.desc.orEmpty()
+            // Named in the description only: a live show about this match, not highlights or a preview.
+            val inDesc = !both && desc.isNotBlank() &&
+                homes.any { SportFollow.mentions(desc, it) } && aways.any { SportFollow.mentions(desc, it) } &&
+                !Sports.looksLikeReplay(raw) && (Sports.looksLive(raw) || Sports.classify(raw, c.group) != null)
+            if (!both && !inDesc) continue
             // Event-channel listings say when the match is; otherwise the programme itself must be on at kick-off.
             val p = Sports.normalise(raw, now)
                 ?: if (raw.title.contains(kickTime)) raw.copy(start = m.kickoff, stop = m.kickoff + 2 * 3_600_000L) else continue
             if (p.stop <= m.kickoff || p.start > m.kickoff + 30 * 60_000L) continue
-            var score = 100
+            var score = if (both) 100 else 90
             if (c.id in favs) score += 20
             if (Sports.looksLive(p)) score += 10
             if (p.title.startsWith("Next", ignoreCase = true)) score -= 15
