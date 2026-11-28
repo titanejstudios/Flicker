@@ -1948,7 +1948,7 @@ class TunerViewModel(internal val app: Application) : AndroidViewModel(app), Rem
         // Picks come from your own country's channels (no shopping, religious, adult or radio
         // either) – unless it's a channel you've watched or made a favourite.
         val mine = (recents + favourites).toHashSet()
-        val chans = allowedAll.filter { c -> c.id in mine || (!WhatsOn.isClutter(c) && !WhatsOn.isWorld(c)) }
+        val all = allowedAll
         val guide = epg
         val rec = recents
         val favs = favourites
@@ -1957,6 +1957,8 @@ class TunerViewModel(internal val app: Application) : AndroidViewModel(app), Rem
             val t = System.currentTimeMillis()
             // A copy: viewing keeps updating the real one (on the main thread) while this works in the background.
             val learned = Taste.fromJson(taste.toJson())
+            // Checking tens of thousands of channel names for clutter is slow: never on the screen's thread.
+            val chans = withContext(Dispatchers.Default) { all.filter { c -> c.id in mine || (!WhatsOn.isClutter(c) && !WhatsOn.isWorld(c)) } }
             val result = withContext(Dispatchers.Default) {
                 // Once Tuner has learned a little about you, picks follow your taste (with reasons).
                 val picks = if (learned.isEmpty) HomeFeed.topPicks(chans, guide, rec, favs, t)

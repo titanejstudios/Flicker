@@ -34,3 +34,7 @@
 -keepclassmembers class * extends com.sun.jna.** { public *; }
 -keep interface com.titanejstudios.tuner.subtitles.VoskLib { *; }
 -dontwarn java.awt.**
+
+# Readable problem-log reports: keep Flicker's own class and method names, and line numbers.
+-keepattributes SourceFile,LineNumberTable
+-keepnames class com.titanejstudios.** { *; }
