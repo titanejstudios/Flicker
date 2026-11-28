@@ -205,4 +205,12 @@ class RicherTest {
         val h = com.titanejstudios.tuner.data.Programme(0L, 3_600_000L, "Premier League Highlights", "Ipswich Town v Aston Villa")
         assertTrue(com.titanejstudios.tuner.data.Sports.looksLikeReplay(h))
     }
+
+    @Test
+    fun theNationsChampionshipIsRugby() {
+        val p = com.titanejstudios.tuner.data.Programme(0L, 3_600_000L, "England v New Zealand: Nations Championship", null)
+        assertEquals("Rugby", com.titanejstudios.tuner.data.Sports.classify(p, "UK | Entertainment"))
+        val f = com.titanejstudios.tuner.data.Programme(0L, 3_600_000L, "Ipswich Town v Aston Villa", null)
+        assertEquals("Football", com.titanejstudios.tuner.data.Sports.classify(f, "UK | Sports"))
+    }
 }
