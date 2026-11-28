@@ -324,6 +324,20 @@ private fun TunerApp(vm: TunerViewModel) {
             if (vm.timesUp) TimesUpDialog(vm)
             vm.timeRequest?.let { com.titanejstudios.tuner.ui.TimeRequestDialog(vm, it) }
             vm.collectingItem?.let { item -> com.titanejstudios.tuner.ui.CollectionPicker(vm, item) }
+            // A new device signed in to Google and found playlists from your other devices.
+            vm.cloud.foundPlaylists?.let { (list, _) ->
+                MenuDialog(
+                    title = "📺 Playlist found",
+                    subtitle = "Your Google account" + (vm.cloud.email?.let { " ($it)" } ?: "") + " has " +
+                        (if (list.size == 1) "a playlist" else "${list.size} playlists") + " from your other devices: " +
+                        list.joinToString { it.name } + ". Import " + (if (list.size == 1) "it" else "them") + "?",
+                    items = listOf(
+                        MenuItem("✓ Import", "your channels, favourites and guide settings come across") { vm.cloud.importFound() },
+                        MenuItem("Not now", "add a playlist yourself instead") { vm.cloud.declineFound() },
+                    ),
+                    onDismiss = { vm.cloud.declineFound() },
+                )
+            }
             vm.crashNotice?.let { why ->
                 MenuDialog(
                     title = "Flicker closed unexpectedly last time",
