@@ -14,30 +14,55 @@ import java.util.TimeZone
  * To remove it, see README.md in this module.
  */
 object BackupGuideCore {
-    /** One free guide. [urls] are tried in order until one answers. */
-    class Source(val key: String, val name: String, val about: String, val urls: List<String>)
+    /**
+     * One free guide. [urls] are tried in order until one answers. [country] ("UK", "US", "CH"…):
+     * it's only read if you have channels from there, and only matched to those (another country's
+     * schedule for "History Channel" is a different schedule). null = any channel.
+     */
+    class Source(val key: String, val name: String, val about: String, val urls: List<String>, val country: String? = null)
 
     val SOURCES = listOf(
-        Source(
-            "epgtalk_uk", "EPGTalk UK", "UK channels, including Sky",
-            listOf("https://raw.githubusercontent.com/acidjesuz/EPGTalk/master/UK_guide.xml.gz"),
-        ),
-        Source(
-            "freeview", "Freeview-EPG", "UK free-to-air channels",
-            listOf("https://raw.githubusercontent.com/dp247/Freeview-EPG/master/epg.xml"),
-        ),
-        Source(
-            "epgtalk_us", "EPGTalk US", "US channels",
-            listOf("https://raw.githubusercontent.com/acidjesuz/EPGTalk/master/US_guide.xml.gz"),
-        ),
-        Source(
-            "epgpw_hk", "epg.pw Hong Kong", "Hong Kong channels, including Now Sports",
-            listOf("https://epg.pw/xmltv/epg_HK.xml.gz", "https://epg.pw/xmltv/epg_HK.xml"),
-        ),
+        // UK
+        Source("epgtalk_uk", "EPGTalk UK", "UK channels, including Sky", listOf("https://raw.githubusercontent.com/acidjesuz/EPGTalk/master/UK_guide.xml.gz"), "UK"),
+        Source("freeview", "Freeview-EPG", "UK free-to-air channels", listOf("https://raw.githubusercontent.com/dp247/Freeview-EPG/master/epg.xml"), "UK"),
+        Source("epgpw_uk", "epg.pw UK", "more UK channels", listOf("https://epg.pw/xmltv/epg_GB.xml.gz", "https://epg.pw/xmltv/epg_GB.xml"), "UK"),
+        Source("epgshare_uk", "epgshare01 UK", "more UK channels", listOf("https://epgshare01.online/epgshare01/epg_ripper_UK1.xml.gz"), "UK"),
+        // US
+        Source("epgshare_us_locals", "epgshare01 US local stations", "ABC, CBS, NBC, FOX, PBS… locals, matched by call sign", listOf("https://epgshare01.online/epgshare01/epg_ripper_US_LOCALS1.xml.gz"), "US"),
+        Source("epgtalk_us", "EPGTalk US", "US channels", listOf("https://raw.githubusercontent.com/acidjesuz/EPGTalk/master/US_guide.xml.gz"), "US"),
+        Source("epgpw_us", "epg.pw US", "more US channels", listOf("https://epg.pw/xmltv/epg_US.xml.gz", "https://epg.pw/xmltv/epg_US.xml"), "US"),
+        Source("epgshare_us2", "epgshare01 US", "more US channels", listOf("https://epgshare01.online/epgshare01/epg_ripper_US2.xml.gz"), "US"),
+        // The rest of the world (each only used if you have channels from that country)
+        Source("epgshare_ch", "epgshare01 Switzerland", "Swiss channels", listOf("https://epgshare01.online/epgshare01/epg_ripper_CH1.xml.gz"), "CH"),
+        Source("epgshare_pl", "epgshare01 Poland", "Polish channels", listOf("https://epgshare01.online/epgshare01/epg_ripper_PL1.xml.gz"), "PL"),
+        Source("epgshare_bg", "epgshare01 Bulgaria", "Bulgarian channels", listOf("https://epgshare01.online/epgshare01/epg_ripper_BG1.xml.gz"), "BG"),
+        Source("epgshare_nl", "epgshare01 Netherlands", "Dutch channels", listOf("https://epgshare01.online/epgshare01/epg_ripper_NL1.xml.gz"), "NL"),
+        Source("epgshare_pt", "epgshare01 Portugal", "Portuguese channels", listOf("https://epgshare01.online/epgshare01/epg_ripper_PT1.xml.gz"), "PT"),
+        Source("epgshare_tr", "epgshare01 Turkey", "Turkish channels", listOf("https://epgshare01.online/epgshare01/epg_ripper_TR3.xml.gz"), "TR"),
+        Source("epgshare_tr1", "epgshare01 Turkey (more)", "more Turkish channels", listOf("https://epgshare01.online/epgshare01/epg_ripper_TR1.xml.gz"), "TR"),
+        Source("epgshare_ro", "epgshare01 Romania", "Romanian channels", listOf("https://epgshare01.online/epgshare01/epg_ripper_RO1.xml.gz"), "RO"),
+        Source("epgshare_ro2", "epgshare01 Romania (more)", "more Romanian channels", listOf("https://epgshare01.online/epgshare01/epg_ripper_RO2.xml.gz"), "RO"),
+        Source("epgshare_it", "epgshare01 Italy", "Italian channels", listOf("https://epgshare01.online/epgshare01/epg_ripper_IT1.xml.gz"), "IT"),
+        Source("epgshare_es", "epgshare01 Spain", "Spanish channels", listOf("https://epgshare01.online/epgshare01/epg_ripper_ES1.xml.gz"), "ES"),
+        Source("epgshare_al", "epgshare01 Albania", "Albanian channels", listOf("https://epgshare01.online/epgshare01/epg_ripper_AL1.xml.gz"), "AL"),
+        Source("epgshare_ca", "epgshare01 Canada", "Canadian channels", listOf("https://epgshare01.online/epgshare01/epg_ripper_CA2.xml.gz"), "CA"),
+        Source("epgpw_ca", "epg.pw Canada", "more Canadian channels", listOf("https://epg.pw/xmltv/epg_CA.xml.gz", "https://epg.pw/xmltv/epg_CA.xml"), "CA"),
+        Source("epgshare_br", "epgshare01 Brazil", "Brazilian channels", listOf("https://epgshare01.online/epgshare01/epg_ripper_BR2.xml.gz"), "BR"),
+        Source("epgpw_br", "epg.pw Brazil", "more Brazilian channels", listOf("https://epg.pw/xmltv/epg_BR.xml.gz", "https://epg.pw/xmltv/epg_BR.xml"), "BR"),
+        Source("epgshare_ba", "epgshare01 Bosnia", "Bosnian channels", listOf("https://epgshare01.online/epgshare01/epg_ripper_BA1.xml.gz"), "BA"),
+        Source("epgshare_be", "epgshare01 Belgium", "Belgian channels", listOf("https://epgshare01.online/epgshare01/epg_ripper_BE2.xml.gz"), "BE"),
+        Source("epgshare_ae", "epgshare01 Arabic", "Arabic channels", listOf("https://epgshare01.online/epgshare01/epg_ripper_AE1.xml.gz"), "AE"),
+        Source("epgshare_de", "epgshare01 Germany", "German channels", listOf("https://epgshare01.online/epgshare01/epg_ripper_DE1.xml.gz"), "DE"),
+        Source("epgpw_de", "epg.pw Germany", "more German channels", listOf("https://epg.pw/xmltv/epg_DE.xml.gz", "https://epg.pw/xmltv/epg_DE.xml"), "DE"),
+        Source("epgpw_au", "epg.pw Australia", "Australian channels", listOf("https://epg.pw/xmltv/epg_AU.xml.gz", "https://epg.pw/xmltv/epg_AU.xml"), "AU"),
+        Source("epgpw_hk", "epg.pw Hong Kong", "Hong Kong channels, including Now Sports", listOf("https://epg.pw/xmltv/epg_HK.xml.gz", "https://epg.pw/xmltv/epg_HK.xml"), "HK"),
     )
 
     /** A channel of yours: its id, the guide id from the playlist (tvg-id), and its name. */
-    class Channel(val id: String, val epgId: String?, val name: String)
+    class Channel(val id: String, val epgId: String?, val name: String, val group: String = "") {
+        /** "UK", "US", "CH"… from the category or a prefix on the name; null if it doesn't say. */
+        val country: String? by lazy { countryOf(name, group) }
+    }
 
     class Programme(val start: Long, val stop: Long, val title: String, val desc: String?, val category: String?, val image: String?)
 
@@ -56,6 +81,41 @@ object BackupGuideCore {
     }
 
     // ---------------- Matching ----------------
+
+    private val countryWords = listOf(
+        "UK" to listOf("uk", "gb", "united kingdom", "britain"), "IE" to listOf("ie", "ireland"),
+        "US" to listOf("us", "usa", "united states", "hulu", "directtv", "directv"), "CA" to listOf("ca", "canada"),
+        "CH" to listOf("ch", "switzerland", "swiss"), "PL" to listOf("pl", "poland"), "BG" to listOf("bg", "bulgaria"),
+        "NL" to listOf("nl", "netherlands", "holland"), "PT" to listOf("pt", "portugal"), "TR" to listOf("tr", "turkey", "turkiye"),
+        "RO" to listOf("ro", "romania"), "IT" to listOf("it", "italy"), "ES" to listOf("es", "spain"), "AL" to listOf("al", "albania"),
+        "BR" to listOf("br", "brazil", "brasil"), "BA" to listOf("ba", "bosnia"), "BE" to listOf("be", "belgium"),
+        "AE" to listOf("ar", "arabic", "ae"), "DE" to listOf("de", "germany", "deutschland"), "AU" to listOf("au", "australia"),
+        "HK" to listOf("hk", "now hk", "hong kong"),
+    )
+
+    /** "CH: 7+" → CH, "UK | Sports*" → UK, "Bulgaria Locals" → BG, "[Hulu Arizona] KNXV" (group "US | Locals") → US. */
+    fun countryOf(name: String, group: String): String? {
+        fun find(text: String, prefixOnly: Boolean): String? {
+            val t = text.lowercase(Locale.ROOT).trim()
+            // A code or name at the start ("CH:", "PL |", "UK |", "Bulgaria Locals").
+            val head = Regex("^[\\[(]?\\s*([a-z ]{2,20}?)\\s*([:|\\])\\-]|\\s|$)").find(t)?.groupValues?.get(1)?.trim()
+            for ((cc, words) in countryWords) {
+                if (head != null && words.any { it == head }) return cc
+                if (!prefixOnly && words.any { it.length > 3 && Regex("(^|[^a-z])" + Regex.escape(it) + "([^a-z]|$)").containsMatchIn(t) }) return cc
+            }
+            return null
+        }
+        return find(group, false) ?: find(name, true)
+    }
+
+    private val callSign = Regex("\\b([KW][A-Z]{2,3})(?:-?(?:DT|TV|LD|CD|LP|CA|D)(\\d)?)?\\s*$")
+
+    /** A US station's call sign ("ABC-WALB-D2" → "WALB:2", "[Hulu Arizona] KNXV" → "KNXV:"). */
+    fun callKey(name: String): String? {
+        val m = callSign.find(name.trim().uppercase(Locale.ROOT)) ?: return null
+        val sub = m.groupValues[2]
+        return m.groupValues[1] + ":" + (if (sub == "1") "" else sub)
+    }
 
     private val wordNumbers = mapOf(
         "one" to "1", "two" to "2", "three" to "3", "four" to "4", "five" to "5",
@@ -111,12 +171,19 @@ object BackupGuideCore {
             if (o == "off") continue
             (o ?: remembered[c.id])?.substringBefore('|')?.let { owner[c.id] = it }
         }
-        val byEpgId = HashMap<String, MutableList<Channel>>()
-        val byName = HashMap<String, MutableList<Channel>>()
-        for (c in channels) {
-            if (overrides[c.id] == "off") continue
-            c.epgId?.takeIf { it.isNotBlank() }?.let { byEpgId.getOrPut(it.trim().lowercase()) { ArrayList() } += c }
-            cleanName(c.name).takeIf { it.isNotEmpty() }?.let { byName.getOrPut(it) { ArrayList() } += c }
+        /** Your channels a source may fill: from its country (or any, for a general source). */
+        fun indexes(src: Source): Triple<Map<String, List<Channel>>, Map<String, List<Channel>>, Map<String, List<Channel>>> {
+            val byEpgId = HashMap<String, MutableList<Channel>>()
+            val byName = HashMap<String, MutableList<Channel>>()
+            val byCall = HashMap<String, MutableList<Channel>>()
+            for (c in channels) {
+                if (overrides[c.id] == "off") continue
+                if (src.country != null && c.country != src.country) continue
+                c.epgId?.takeIf { it.isNotBlank() }?.let { byEpgId.getOrPut(it.trim().lowercase()) { ArrayList() } += c }
+                cleanName(c.name).takeIf { it.isNotEmpty() }?.let { byName.getOrPut(it) { ArrayList() } += c }
+                if (src.country == "US") callKey(c.name)?.let { byCall.getOrPut(it) { ArrayList() } += c }
+            }
+            return Triple(byEpgId, byName, byCall)
         }
         val coveredCache = HashMap<String, LongArray>()
         fun free(channelId: String, start: Long, stop: Long): Boolean {
@@ -140,13 +207,17 @@ object BackupGuideCore {
         val added = HashMap<String, MutableList<LongArray>>() // what this run added, so sources don't overlap
         var total = 0
         for (src in sources(settings.custom)) {
+            // A country's guide is only downloaded if you have channels from there (or chose it by hand).
+            val (byEpgId, byName, byCall) = indexes(src)
+            val chosen = channels.any { c -> (overrides[c.id] ?: remembered[c.id])?.substringBefore('|') == src.key }
+            if (byEpgId.isEmpty() && byName.isEmpty() && byCall.isEmpty() && !chosen) continue
             val started = System.currentTimeMillis()
             val seenChannels = ArrayList<SourceChannel>()
             var n = 0
             val ok = src.urls.any { url ->
                 runCatching {
                     open(url).use { input ->
-                        n = readSource(newParser(), input, src, channels, byEpgId, byName, overrides, remembered, owner, from, to, seenChannels) { cid, p ->
+                        n = readSource(newParser(), input, src, channels, byEpgId, byName, byCall, overrides, remembered, owner, from, to, seenChannels) { cid, p ->
                             val mine = added.getOrPut(cid) { ArrayList() }
                             if (!free(cid, p.start, p.stop) || mine.any { it[0] < p.stop && it[1] > p.start }) false
                             else {
@@ -187,6 +258,7 @@ object BackupGuideCore {
         channels: List<Channel>,
         byEpgId: Map<String, List<Channel>>,
         byName: Map<String, List<Channel>>,
+        byCall: Map<String, List<Channel>>,
         overrides: Map<String, String>,
         remembered: MutableMap<String, String>,
         owner: HashMap<String, String>,
@@ -208,6 +280,7 @@ object BackupGuideCore {
 
         // Guide channel id → which of your channels it fills.
         var targets: HashMap<String, List<Channel>>? = null
+        val seenIds = HashSet<String>()
         val xmlNames = HashMap<String, MutableList<String>>()
         fun buildTargets(): HashMap<String, List<Channel>> {
             val t = HashMap<String, MutableList<Channel>>()
@@ -232,6 +305,10 @@ object BackupGuideCore {
                 val hits = LinkedHashSet<Channel>()
                 byEpgId[xid]?.let { hits += it }
                 if (hits.isEmpty()) for (nm in names) byName[cleanName(nm)]?.let { hits += it }
+                // US locals: the station's call sign ("WALB-DT2" ↔ "ABC-WALB-D2").
+                if (hits.isEmpty() && byCall.isNotEmpty()) {
+                    for (k in (listOf(xid.substringBefore('.')) + names).mapNotNull { callKey(it) }) byCall[k]?.let { hits += it }
+                }
                 for (c in hits) {
                     if (c.id in placed) continue
                     // A channel already filled from another source stays with that one.
@@ -279,7 +356,7 @@ object BackupGuideCore {
                             val nm = text.toString().trim()
                             if (nm.isNotEmpty()) {
                                 xmlNames.getOrPut(id.lowercase()) { ArrayList() } += nm
-                                if (seen.size < 8000 && seen.none { it.id == id }) seen += SourceChannel(id, nm)
+                                if (seen.size < 8000 && seenIds.add(id)) seen += SourceChannel(id, nm)
                             }
                         }
                         field = null

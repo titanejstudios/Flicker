@@ -43,7 +43,7 @@ fun BackupGuideSettings(vm: TunerViewModel) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         SettingRow(
             "📅 Use extra guide sources",
-            subtitle = "Personal use · fills channels with no listings, and gaps, from free guides (EPGTalk UK & US, Freeview-EPG, epg.pw Hong Kong)",
+            subtitle = "Personal use · fills channels with no listings, and gaps, from free guides for each country you have channels from (UK, US and US locals, Europe, Canada, Brazil, Arabic, Hong Kong…)",
             detail = if (on) "On" else "Off",
             onClick = {
                 BackupGuide.setEnabled(ctx, !on)
@@ -71,7 +71,7 @@ fun BackupGuideSettings(vm: TunerViewModel) {
         MenuDialog(
             title = "Extra guide sources",
             subtitle = "Used in this order, after your provider's guide. Free guides from other people – they can change or stop.",
-            items = BackupGuide.SOURCES.map { s -> MenuItem("✓ ${s.name}", s.about) { } } +
+            items = BackupGuide.SOURCES.map { s -> MenuItem(s.name, s.about + (s.country?.let { " · only read if you have $it channels" } ?: "")) { } } +
                 custom.map { url -> MenuItem("✓ " + url.substringAfter("://").take(60), "your own · OK to remove") {
                     BackupGuide.setCustomUrls(ctx, custom - url)
                     changed()
