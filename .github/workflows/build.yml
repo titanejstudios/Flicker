@@ -94,6 +94,16 @@ jobs:
       - name: Build the APK
         run: gradle --no-daemon assembleRelease
 
+      - name: Show the names needed to read a freeze report (temporary)
+        run: |
+          m=app/build/outputs/mapping/release/mapping.txt
+          for c in I3.N3 I3.z1 s4.g t4.G b4.a; do
+            echo "== $c"
+            grep -n -- "-> $c:" $m || true
+            n=$(grep -n -- "-> $c:" $m | head -1 | cut -d: -f1)
+            [ -n "$n" ] && sed -n "$((n+1)),$((n+4000))p" $m | awk '/^[^ ]/{exit} {print}' | grep -E " (L4|I4|J4|q3|a|invokeSuspend|run|resumeWith)$|:(55|251|713|170|12|9|107):" | head -40
+          done
+
       - name: Check the APK prepares Flicker's screens ahead (baseline profile)
         run: |
           unzip -l app/build/outputs/apk/release/app-release.apk | grep -E "assets/dexopt/baseline.prof" || { echo "The baseline profile is missing from the APK"; exit 1; }
