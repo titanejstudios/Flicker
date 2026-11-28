@@ -77,14 +77,14 @@ object Languages {
     fun tagOf(channel: Channel): Tag? = cached(channel.group, true) ?: cached(channel.name, false)
 
     // Remembered per category / name: worked out for every channel each time the list changes.
-    private val NONE = Tag("", "", false)
+    private val NO_TAG = Tag("", "", false)
     private val seenWords = java.util.concurrent.ConcurrentHashMap<String, Tag>()
     private val seenTags = java.util.concurrent.ConcurrentHashMap<String, Tag>()
 
     private fun cached(text: String, useWords: Boolean): Tag? {
         val map = if (useWords) seenWords else seenTags
-        val t = map.getOrPut(text) { tagOf(text, useWords) ?: NONE }
-        return if (t === NONE) null else t
+        val t = map.getOrPut(text) { tagOf(text, useWords) ?: NO_TAG }
+        return if (t === NO_TAG) null else t
     }
 
     /** Works out every channel's language ahead (call off the main thread). */
