@@ -284,6 +284,7 @@ internal fun TunerViewModel.runHealthCheck() {
         store.healthCheckedAt = healthCheckedAt
         healthProgress = null
         recomputeVisible()
+        offlineChanged()
         showNotice("Checked $done channels – ${dead.size} offline")
     }
 }
@@ -346,6 +347,7 @@ internal fun TunerViewModel.matchDayCheck() {
             store.deadChannels = deadChannels
             recomputeVisible()
             AppLog.info("Offline recheck: ${back.size} channel(s) working again")
+            offlineChanged()
         }
     }
 }
@@ -363,6 +365,7 @@ internal fun TunerViewModel.clearDead(channelId: String? = null) {
     if (channelId == null) com.titanejstudios.tuner.data.AppLog.info("Offline list cleared by hand")
     store.deadChannels = deadChannels
     recomputeVisible()
+    offlineChanged()
 }
 
 internal fun TunerViewModel.addSourceFromPhone(s: Source) {

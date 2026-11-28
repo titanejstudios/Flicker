@@ -299,6 +299,8 @@ class CloudSyncFeature(
             snapshots[id] = JSONObject(snap.toString())
             // Each house keeps its own favourites unless you've chosen to share them.
             if (!theirHouse.equals(house, true) && !shareFavourites) snap.optJSONObject("sections")?.remove(TvSync.FAVOURITES)
+            // Offline channels only within the same house (another house may have a different provider).
+            if (!theirHouse.equals(house, true)) snap.optJSONObject("sections")?.remove(LinkSync.OFFLINE)
             changed += LinkSync.apply(store, snap)
             // A PIN set or removed on another device (a PC) more recently than here.
             val theirPinAt = d.optLong("pin_at")

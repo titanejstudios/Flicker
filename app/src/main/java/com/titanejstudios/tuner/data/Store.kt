@@ -421,9 +421,13 @@ class Store(context: Context) {
 
     // ---------------- Channel health, fast switching, phone remote ----------------
 
+    /** Changing it stamps the time, so the newest list is shared with the other devices in the house. */
     var deadChannels: Set<String>
         get() = getList("dead_channels").toSet()
-        set(value) = putList("dead_channels", value)
+        set(value) {
+            if (value != getList("dead_channels").toSet()) setSyncStamp(com.titanejstudios.tuner.integrations.LinkSync.OFFLINE, System.currentTimeMillis())
+            putList("dead_channels", value)
+        }
 
     /** Channels that only show something on match days: never hidden, just "off air" in between. */
     var matchDayChannels: Set<String>

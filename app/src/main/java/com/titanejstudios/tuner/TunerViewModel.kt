@@ -6302,6 +6302,12 @@ class TunerViewModel(internal val app: Application) : AndroidViewModel(app), Rem
         profilesChanged()
     }
 
+    /** The offline list changed here (a check, a recheck, cleared by hand): share it with the house. */
+    internal fun offlineChanged() {
+        link.tellOthers()
+        cloud.syncSoon()
+    }
+
     /** Profiles were added, edited or deleted here: tell the other devices and houses. */
     private fun profilesChanged() {
         store.setSyncStamp(com.titanejstudios.tuner.integrations.LinkSync.PROFILES, System.currentTimeMillis())
@@ -6340,6 +6346,12 @@ class TunerViewModel(internal val app: Application) : AndroidViewModel(app), Rem
             AppLog.info("Profiles synced from another device: " + profiles.joinToString { it.name })
         }
         if (com.titanejstudios.tuner.integrations.LinkSync.INTROS in changed) introEnds = store.introEnds
+        if (com.titanejstudios.tuner.integrations.LinkSync.OFFLINE in changed) {
+            deadChannels = store.deadChannels
+            healthCheckedAt = store.healthCheckedAt
+            recomputeVisible()
+            AppLog.info("Offline list from another device in the house: ${deadChannels.size} channel(s)")
+        }
         val lists = changed - "pin" - com.titanejstudios.tuner.integrations.LinkSync.COLLECTIONS - com.titanejstudios.tuner.integrations.LinkSync.INTROS - com.titanejstudios.tuner.integrations.LinkSync.TEAMS -
             com.titanejstudios.tuner.integrations.LinkSync.STARTED - com.titanejstudios.tuner.integrations.LinkSync.PROFILES -
             com.titanejstudios.tuner.integrations.LinkSync.YOUTUBE

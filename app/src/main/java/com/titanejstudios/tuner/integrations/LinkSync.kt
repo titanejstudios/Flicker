@@ -22,6 +22,8 @@ object LinkSync {
     /** Your own named collections. */
     const val COLLECTIONS = "lists"
     const val TASTE = "taste"
+    /** Which channels are offline (shared only within one house: same playlist, same provider). */
+    const val OFFLINE = "offline"
     private const val DONE = "done"
 
     /** Remembers that [contentId] was finished (keeps the newest 200). */
@@ -87,6 +89,12 @@ object LinkSync {
                 .put("espn", runCatching { JSONObject(store.espnTeams ?: "{}") }.getOrDefault(JSONObject())),
         )
         sections.put(DONE, JSONObject(store.resumeDone))
+        // The offline list, so one device's channel check saves the others running it.
+        sections.put(
+            OFFLINE,
+            JSONObject().put("at", store.syncStamp(OFFLINE)).put("checked", store.healthCheckedAt)
+                .put("ids", JSONArray(store.deadChannels.toList())),
+        )
         // Kids' weeks (watch time and anything blocked), read by a grown-up's phone for the report.
         val kids = JSONObject()
         for (p in store.profiles) if (p.kids) {
@@ -353,6 +361,18 @@ object LinkSync {
             if (add.isNotEmpty()) {
                 store.introEnds = mine + add
                 changed += INTROS
+            }
+        }
+        // Offline channels: the newest list wins (the result of a check, a recheck, or clearing by hand).
+        sections.optJSONObject(OFFLINE)?.let { o ->
+            val at = o.optLong("at")
+            val ids = o.optJSONArray("ids")
+            if (ids != null && at > store.syncStamp(OFFLINE)) {
+                store.deadChannels = (0 until ids.length()).map { ids.getString(it) }.toSet()
+                store.setSyncStamp(OFFLINE, at)
+                val checked = o.optLong("checked")
+                if (checked > store.healthCheckedAt) store.healthCheckedAt = checked
+                changed += OFFLINE
             }
         }
         return changed
