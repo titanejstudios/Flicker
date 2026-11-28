@@ -173,8 +173,11 @@ class RicherTest {
 
     @Test
     fun teamNamesCoverTheGuidesWaysOfWritingThem() {
-        assertEquals(listOf("Newcastle United FC", "Newcastle United"), teamNames("Newcastle United FC"))
-        assertEquals(listOf("AFC Bournemouth", "Bournemouth"), teamNames("AFC Bournemouth"))
+        assertTrue("Newcastle United" in teamNames("Newcastle United FC"))
+        assertTrue("Bournemouth" in teamNames("AFC Bournemouth"))
+        assertTrue("Manchester United" in teamNames("Man Utd"))
+        assertTrue("Man Utd" in teamNames("Man Utd", "Manchester United"))
+        assertTrue("Brighton & Hove Albion" in teamNames("Brighton", "Brighton and Hove Albion"))
         assertEquals(listOf("Eagles"), teamNames("Eagles"))
     }
 }

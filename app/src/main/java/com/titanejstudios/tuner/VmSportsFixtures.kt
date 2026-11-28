@@ -13,40 +13,67 @@ import kotlinx.coroutines.withContext
 
 // Part of TunerViewModel: the Sports page's "All fixtures" – which of your channels show a match.
 
-/** The names a team might have in the guide ("Newcastle", "Newcastle United", without "FC"). */
-internal fun teamNames(n: String): List<String> =
-    listOf(n, n.removeSuffix(" FC").removeSuffix(" AFC").removePrefix("AFC ").trim()).filter { it.length >= 3 }.distinct()
+/** Short names British guides use for some clubs, and the full ones (both ways). */
+private val ALIASES = listOf(
+    "Man Utd" to "Manchester United", "Man United" to "Manchester United", "Man City" to "Manchester City",
+    "Spurs" to "Tottenham Hotspur", "Tottenham" to "Tottenham Hotspur", "Wolves" to "Wolverhampton Wanderers",
+    "Nott'm Forest" to "Nottingham Forest", "Nottm Forest" to "Nottingham Forest", "Forest" to "Nottingham Forest",
+    "Sheff Utd" to "Sheffield United", "Sheff Wed" to "Sheffield Wednesday", "QPR" to "Queens Park Rangers",
+    "West Brom" to "West Bromwich Albion", "Brighton" to "Brighton and Hove Albion", "Newcastle" to "Newcastle United",
+    "West Ham" to "West Ham United", "Leeds" to "Leeds United", "Ipswich" to "Ipswich Town", "Coventry" to "Coventry City",
+    "Leicester" to "Leicester City", "Norwich" to "Norwich City", "Stoke" to "Stoke City", "Hull" to "Hull City",
+    "Bayern" to "Bayern Munich", "PSG" to "Paris Saint-Germain", "Inter" to "Inter Milan", "Atletico" to "Atletico Madrid",
+)
+
+/** The names a team might have in the guide ("Man Utd", "Manchester United", without "FC", "&" or "and"). */
+internal fun teamNames(vararg names: String): List<String> {
+    val base = names.map { it.trim() }.filter { it.isNotEmpty() }
+    val withAliases = base + base.flatMap { n -> ALIASES.filter { (a, b) -> a.equals(n, true) || b.equals(n, true) }.flatMap { listOf(it.first, it.second) } }
+    return withAliases.flatMap { n ->
+        val plain = n.removeSuffix(" FC").removeSuffix(" AFC").removePrefix("AFC ").trim()
+        listOf(n, plain, plain.replace(" & ", " and "), plain.replace(" and ", " & "))
+    }.filter { it.length >= 3 }.distinctBy { it.lowercase() }
+}
 
 /**
- * Every channel of yours with this match on (both teams named, around kick-off), best first:
- * your favourites, live broadcasts, and the one starting nearest kick-off. Blocking.
+ * Every channel of yours with this match on (both teams named, on at kick-off), best first:
+ * your favourites, live broadcasts, and the one starting nearest kick-off. Event-channel listings
+ * ("Next: A v B — Sun 29 Nov 16:30", "EPL02: Man Utd 15:00 Brentford 28/11") count too. Blocking.
  */
 internal fun TunerViewModel.channelsShowing(m: Espn.Fixture): List<Pair<Channel, Programme>> {
     val ids = activeSources().map { it.id }
     val chans = allowedAll
     val byId = chans.associateBy { it.id }
     val favs = favouriteSet
-    val from = m.kickoff - 3 * 3_600_000L
+    val homes = teamNames(m.home, m.homeFull)
+    val aways = teamNames(m.away, m.awayFull)
+    // Listings from a day before (all-day event channels) up to a couple of hours after kick-off.
+    val from = m.kickoff - 30 * 3_600_000L
     val hits = HashMap<String, MutableList<Programme>>()
     val seen = HashSet<String>()
-    for (term in teamNames(m.home)) {
+    for (term in (homes + aways)) {
         for ((cid, p) in db.searchProgrammes(ids, term, from, 400)) {
             if (cid !in byId || p.start > m.kickoff + 2 * 3_600_000L) continue
             if (seen.add(cid + "@" + p.start)) hits.getOrPut(cid) { ArrayList() } += p
         }
     }
     val guide = shiftGuide(chans, hits)
+    val kickTime = java.text.SimpleDateFormat("HH:mm", java.util.Locale.UK).format(java.util.Date(m.kickoff))
+    val now = System.currentTimeMillis()
     val found = ArrayList<Triple<Channel, Programme, Int>>()
     for ((cid, list) in guide) {
         val c = byId[cid] ?: continue
-        for (p in list) {
-            // On around kick-off (a build-up show can start an hour or two before).
-            if (p.stop <= m.kickoff || p.start > m.kickoff + 30 * 60_000L || p.start < m.kickoff - 150 * 60_000L) continue
-            val both = teamNames(m.home).any { SportFollow.mentions(p.title, it) } && teamNames(m.away).any { SportFollow.mentions(p.title, it) }
+        for (raw in list) {
+            val both = homes.any { SportFollow.mentions(raw.title, it) } && aways.any { SportFollow.mentions(raw.title, it) }
             if (!both) continue
+            // Event-channel listings say when the match is; otherwise the programme itself must be on at kick-off.
+            val p = Sports.normalise(raw, now)
+                ?: if (raw.title.contains(kickTime)) raw.copy(start = m.kickoff, stop = m.kickoff + 2 * 3_600_000L) else continue
+            if (p.stop <= m.kickoff || p.start > m.kickoff + 30 * 60_000L) continue
             var score = 100
             if (c.id in favs) score += 20
             if (Sports.looksLive(p)) score += 10
+            if (p.title.startsWith("Next", ignoreCase = true)) score -= 15
             score -= (kotlin.math.abs(p.start - (m.kickoff - 30 * 60_000L)) / 60_000L).toInt().coerceAtMost(60) / 10
             found += Triple(c, p, score)
         }
