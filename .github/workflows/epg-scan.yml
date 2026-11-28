@@ -1,0 +1,55 @@
+name: epg-scan (temporary)
+on:
+  push:
+    branches: [epg-scan]
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: List channels in free TV guides
+        shell: python
+        run: |
+          import gzip, io, re, sys, urllib.request, xml.etree.ElementTree as ET
+          from concurrent.futures import ThreadPoolExecutor
+          UA = {"User-Agent": "Mozilla/5.0"}
+          def get(url, limit=None):
+              req = urllib.request.Request(url, headers=UA)
+              with urllib.request.urlopen(req, timeout=120) as r:
+                  return r.read() if limit is None else r.read(limit)
+          urls = []
+          # epgshare01: every country file in its folder
+          try:
+              idx = get("https://epgshare01.online/epgshare01/").decode("utf-8", "replace")
+              names = sorted(set(re.findall(r'href="(epg_ripper_[A-Za-z0-9_]+\.xml\.gz)"', idx)))
+              print("epgshare01 files:", len(names), " ".join(names))
+              urls += ["https://epgshare01.online/epgshare01/" + n for n in names if "ALL_SOURCES" not in n]
+          except Exception as e:
+              print("epgshare01 index failed:", e)
+          ccs = "GB US CA AU NZ IE CH PL ES AL BG NL PT TR AR PK NO IT BR BE RO BA DE FR AT DK SE FI GR HR RS SI MK ME MX ZA IN AE SA EG JP KR HK MY SG PH ID TH AF AM AZ BD DZ BO CL CO PE LB IQ MA TN NG KE IL CZ SK HU UA RU LT LV EE".split()
+          urls += [f"https://epg.pw/xmltv/epg_{c}.xml.gz" for c in ccs]
+          urls += ["https://raw.githubusercontent.com/acidjesuz/EPGTalk/master/UK_guide.xml.gz",
+                   "https://raw.githubusercontent.com/acidjesuz/EPGTalk/master/US_guide.xml.gz",
+                   "https://raw.githubusercontent.com/dp247/Freeview-EPG/master/epg.xml"]
+          def channels(url):
+              try:
+                  data = get(url)
+                  if data[:2] == b"\x1f\x8b":
+                      data = gzip.decompress(data)
+                  out = []
+                  for ev, el in ET.iterparse(io.BytesIO(data), events=("end",)):
+                      if el.tag == "channel":
+                          dn = [d.text or "" for d in el.findall("display-name")]
+                          out.append((el.get("id") or "", " ~ ".join(x.strip() for x in dn if x.strip())))
+                          el.clear()
+                      elif el.tag == "programme":
+                          break
+                  return url, out, None
+              except Exception as e:
+                  return url, [], str(e)[:120]
+          with ThreadPoolExecutor(8) as ex:
+              for url, chans, err in ex.map(channels, urls):
+                  src = url.split("/")[-1]
+                  print(f"SRCINFO|{src}|{len(chans)}|{err or ''}|{url}")
+                  for cid, dn in chans:
+                      print(f"EPG|{src}|{cid}|{dn}".replace("\n", " "))
