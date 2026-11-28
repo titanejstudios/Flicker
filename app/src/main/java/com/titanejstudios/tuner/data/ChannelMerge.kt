@@ -14,9 +14,23 @@ object ChannelMerge {
     )
     private val nonAlnum = Regex("[^a-z0-9]")
 
+    // Worked out once per name: big playlists have tens of thousands of channels, and doing these
+    // regexes for every one each time the list changes froze the screen.
+    private val keys = java.util.concurrent.ConcurrentHashMap<String, String>()
+    private val qualities = java.util.concurrent.ConcurrentHashMap<String, Int>()
+
     /** "BBC One FHD (1080p)" and "BBC One SD" give the same key. */
-    fun key(name: String): String =
+    fun key(name: String): String = keys.getOrPut(name) {
         name.lowercase(Locale.ROOT).replace(qualityTag, " ").replace(nonAlnum, "")
+    }
+
+    /** Works out every name's key and quality ahead (call off the main thread). */
+    fun warm(names: Collection<String>) {
+        for (n in names) {
+            key(n)
+            quality(n)
+        }
+    }
 
     /** Higher is better: 4K 5, 1080p 4, 720p 3, unknown 2, SD 1. */
     private val q5 = Regex("\\b(2160\\s*p|4k|uhd|8k)\\b")
@@ -24,7 +38,9 @@ object ChannelMerge {
     private val q3 = Regex("\\b(720\\s*p|hd)\\b")
     private val q1 = Regex("\\b(576\\s*[pi]|480\\s*p|sd)\\b")
 
-    fun quality(name: String): Int {
+    fun quality(name: String): Int = qualities.getOrPut(name) { qualityOf(name) }
+
+    private fun qualityOf(name: String): Int {
         val n = name.lowercase(Locale.ROOT)
         return when {
             q5.containsMatchIn(n) -> 5

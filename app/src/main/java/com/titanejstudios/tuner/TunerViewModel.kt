@@ -1639,7 +1639,14 @@ class TunerViewModel(internal val app: Application) : AndroidViewModel(app), Rem
     internal suspend fun loadActive() {
         val ids = activeSources().map { it.id }
         val list = withContext(Dispatchers.IO) {
-            db.loadChannels(ids).also { altIndex = StreamAlternates.index(it) }
+            db.loadChannels(ids).also {
+                altIndex = StreamAlternates.index(it)
+                // The name matching for merging HD/SD copies and languages, worked out here rather than on screen.
+                runCatching {
+                    ChannelMerge.warm(it.mapTo(HashSet()) { c -> c.name })
+                    com.titanejstudios.tuner.data.Languages.warm(it)
+                }
+            }
         }
         allChannels = list
         recomputeVisible()
