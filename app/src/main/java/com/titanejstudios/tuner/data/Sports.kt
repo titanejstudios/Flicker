@@ -117,6 +117,12 @@ object Sports {
     )
 
     /** "29/11 16:30", "29.11.2026 16:30" */
+    /** "EPL02: Man Utd 15:00 Brentford 28/11": an optional slot code, home, time, away, optional date. */
+    private val slot = Regex(
+        "^\\s*([A-Za-z]{2,8}\\s?\\d{1,3}\\s*[:\\-–—|]\\s*)?([\\p{L}][\\p{L} .'&-]{1,40}?)\\s+(\\d{1,2})[:.](\\d{2})\\s+" +
+            "([\\p{L}][\\p{L} .'&-]{1,40}?)(?:\\s+(\\d{1,2})[/.](\\d{1,2})(?:[/.](\\d{2,4}))?)?\\s*$",
+    )
+
     private val numericDateTime = Regex(
         "(\\d{1,2})[/.](\\d{1,2})(?:[/.](\\d{2,4}))?\\s*(?:at|@|-|–|—)?\\s*(\\d{1,2})[:.](\\d{2})",
         RegexOption.IGNORE_CASE,
@@ -139,6 +145,22 @@ object Sports {
         if (placeholder.containsMatchIn(title)) return null
 
         val long = p.stop - p.start > 4 * HOUR
+        // Event slots: "EPL02: Man Utd 15:00 Brentford 28/11" – home, kick-off time, away, date.
+        slot.find(title)?.let { m ->
+            val coded = m.groupValues[1].isNotBlank()
+            if (coded || hadPrefix || long) {
+                val home = cleanTitle(m.groupValues[2])
+                val away = cleanTitle(m.groupValues[5])
+                val h = m.groupValues[3].toInt()
+                val min = m.groupValues[4].toInt()
+                val cal = java.util.Calendar.getInstance()
+                val start = if (m.groupValues[6].isNotBlank()) {
+                    val year = m.groupValues[8].toIntOrNull()?.let { if (it < 100) 2000 + it else it }
+                    at(cal, now, m.groupValues[6].toInt(), m.groupValues[7].toInt() - 1, year, h, min)
+                } else findWhen("$h:${"%02d".format(min)}", now)?.first
+                if (start != null && home.length >= 2 && away.length >= 2) return p.copy(title = "$home v $away", start = start, stop = start + 2 * HOUR)
+            }
+        }
         if (hadPrefix || long) {
             val found = findWhen(title, now)
             if (found != null) {
